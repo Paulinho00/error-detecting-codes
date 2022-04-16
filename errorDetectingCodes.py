@@ -94,3 +94,50 @@ class LongitudinalRedundancyCheck:
                 return False
 
         return True
+
+
+class FletcherChecksum:
+
+    def __init__(self):
+        self.__data_block_size = 8
+
+    def encode(self, array: np.ndarray) -> list:
+        checksum1, checksum2 = 0, 0
+        if array.size % self.__data_block_size != 0:
+            missing_elements_to_valid_block_size = self.__data_block_size - array.size % self.__data_block_size
+            for element in range(0, missing_elements_to_valid_block_size):
+                array = np.insert(array, 0, 0)
+
+        array = np.split(array, array.size/self.__data_block_size)
+        for ndarray in array:
+            integer_value_of_data_block = ndarray.dot(2 ** np.arange(ndarray.size)[::-1])
+            checksum1 += integer_value_of_data_block
+            checksum2 += checksum1
+        checksum1 = checksum1 % (2 ** self.__data_block_size)
+        checksum2 = checksum2 % (2 ** self.__data_block_size)
+        checksum1 = np.fromstring(np.binary_repr(checksum1).zfill(8), dtype='S1').astype(int)
+        checksum2 = np.fromstring(np.binary_repr(checksum2).zfill(8), dtype='S1').astype(int)
+        array.append(checksum1)
+        array.append(checksum2)
+        return array
+
+    def check(self, array: list)-> bool:
+        checksum1, checksum2 = 0, 0
+        rows_of_array = len(array) - 2
+        for ndarray in array[:rows_of_array]:
+            integer_value_of_data_block = ndarray.dot(2 ** np.arange(ndarray.size)[::-1])
+            checksum1 += integer_value_of_data_block
+            checksum2 += checksum1
+
+        correct_checksum = array[rows_of_array].dot(2 ** np.arange(ndarray.size)[::-1])
+        checksum1 = checksum1 % (2 ** self.__data_block_size)
+        if checksum1 != correct_checksum:
+            return False
+
+        rows_of_array += 1
+        correct_checksum = array[rows_of_array].dot(2 ** np.arange(ndarray.size)[::-1])
+        checksum2 = checksum2 % (2 ** self.__data_block_size)
+        if checksum2 != correct_checksum:
+            return False
+
+        return True
