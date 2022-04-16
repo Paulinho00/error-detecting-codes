@@ -28,7 +28,7 @@ class CyclicRedundancyCheck:
         self.__polynomial = np.array([1, 1, 0, 0, 1, 1, 0, 0, 1])
         self.__number_of_bits = 9
 
-    def encode(self, array):
+    def encode(self, array: np.ndarray) -> np.ndarray:
         data_array = np.append(array, np.full(self.__number_of_bits, 0))
         integer_value_of_array = data_array.dot(2 ** np.arange(data_array.size)[::-1])
         divisor = np.append(self.__polynomial, np.full(data_array.size - self.__polynomial.size, 0))
@@ -42,7 +42,7 @@ class CyclicRedundancyCheck:
         crc_code = np.fromstring(np.binary_repr(integer_value_of_array).zfill(3), dtype='S1').astype(int)
         return np.append(array, crc_code)
 
-    def check(self, array):
+    def check(self, array: np.ndarray) -> bool:
         integer_value_of_array = array.dot(2 ** np.arange(array.size)[::-1])
         divisor = np.append(self.__polynomial, np.full(array.size - self.__polynomial.size, 0))
         integer_value_of_divisor = divisor.dot(2**np.arange(divisor.size)[::-1])
@@ -56,3 +56,41 @@ class CyclicRedundancyCheck:
             return True
         else:
             return False
+
+
+class LongitudinalRedundancyCheck:
+    def __init__(self):
+        self.__block_size = 8
+
+    def encode(self, array: np.ndarray) -> list:
+        if array.size % self.__block_size != 0:
+            missing_elements_to_valid_block_size = self.__block_size - array.size % self.__block_size
+            for element in range(0, missing_elements_to_valid_block_size):
+                array = np.insert(array, 0, 0)
+
+        array = np.split(array, array.size/self.__block_size)
+        rows_of_array = len(array)
+        parity_row = np.zeros(self.__block_size, dtype=int)
+        for column in range(0, self.__block_size):
+            number_of_ones = 0
+            for row in range(0, rows_of_array):
+                if array[row][column]:
+                    number_of_ones += 1
+
+            if number_of_ones % 2 != 0:
+                parity_row[column] = 1
+        array.append(parity_row)
+        return array
+
+    def check(self, array: list) -> bool:
+        rows_of_array = len(array)
+        for column in range(0, self.__block_size):
+            number_of_ones = 0
+            for row in range(0, rows_of_array):
+                if array[row][column]:
+                    number_of_ones += 1
+
+            if number_of_ones % 2 != 0:
+                return False
+
+        return True
